@@ -14,7 +14,6 @@ int main(void){
         digitalWrite(PIN_NUM, 0);
         delay(500);
     }
-    
     return 0;    
 }
 // C 컴파일방법
