@@ -5,10 +5,11 @@ import cv2
 
 video_capture = cv2.VideoCapture(0)
 
-raspistill -o ~/work/me.jpg
+#raspistill -o ~/work/me.jpg
 #사진한장 찍어서 파일하나 넣기
-me_image = fr.load_image_file("me.jpg") 
-me_face_encoding = fr.face_encodings(me_image)#[0]
+me_image = fr.load_image_file("/home/pi/work/me.jpg")
+#print(fr.face_encodings(me_image)) 
+me_face_encoding = fr.face_encodings(me_image)[0]
 
 known_face_encondings = [me_face_encoding]
 known_face_names = ["Me"] #your name
