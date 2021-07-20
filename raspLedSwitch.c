@@ -1,6 +1,4 @@
-// https://hoho325.tistory.com/216
-// 암암 4개 필요
-
+//https://hoho325.tistory.com/216
 #include <stdio.h>
 #include <wiringPi.h>
  
@@ -16,16 +14,15 @@ int main(){
     pinMode(SWITCH, INPUT);
  
     while(1){
-        if(digitalRead(SWITCH) == HIGH){
-            printf("Button was pressed\n");
-            digitalWrite(LED, HIGH);
+        if(digitalRead(SWITCH) == HIGH){ //스위치가 눌리면
+            //printf("Button was pressed\n");
+            digitalWrite(LED, HIGH); //led밝기조절
         }
         else{
-            printf("Button was NOT pressed\n");
+            //printf("Button was NOT pressed\n");
             digitalWrite(LED, LOW);
         }
- 
-        delay(1000);
+        //delay(1000);
     }
     return 0;
 }
