@@ -1,9 +1,17 @@
 import RPi.GPIO as GPIO
 import time
- 
+import paho.mqtt.client as mqtt
+
+def on_connect(client, userdata, flags, rc):  # The callback for when the client connects to the broker
+    print("Connected with result code {0}".format(str(rc)))  # Print result of connection attempt
+    client.subscribe("mysecondMq")  # Subscribe to the topic “digitest/test1”, receive any messages published on it
+
+def on_message(client, userdata, msg):  # The callback for when a PUBLISH message is received from the server.
+    print(str(msg.payload))  # Print a received msg
+
+
 LED = 12 # wp 1
-SWITCH = 16 #wp 4
- 
+
 def led_on(pin):
     GPIO.setmode(GPIO.BOARD) #모드를 psy no
     GPIO.setup(pin, GPIO.OUT) #out로셋업
