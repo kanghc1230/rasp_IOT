@@ -5,25 +5,31 @@ import cv2
 
 video_capture = cv2.VideoCapture(0)
 
+#STEP 1. 사진부분
 #raspistill -o ~/work/me.jpg
 #사진한장 찍어서 파일하나 넣기
 me_image = fr.load_image_file("/home/pi/work/me.jpg")
 #print(fr.face_encodings(me_image)) 
+#얼굴사진 인코딩해서 [-1212414,...] 128개의 리스트로 변화
 me_face_encoding = fr.face_encodings(me_image)[0]
 
 known_face_encondings = [me_face_encoding]
 known_face_names = ["Me"] #your name
 
+#STEP 2. 촬영부분
 while True: 
     ret, frame = video_capture.read()
 
+    #STEP 3. 촬영인코딩
     rgb_frame = frame[:, :, ::-1]
 
+    #로케이션, 인코딩
     face_locations = fr.face_locations(rgb_frame)
     face_encodings = fr.face_encodings(rgb_frame, face_locations)
-
+    
+    
     for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
-
+        #촬영에서 얼굴인코딩해 비교
         matches = fr.compare_faces(known_face_encondings, face_encoding)
 
         name = "Unknown"
