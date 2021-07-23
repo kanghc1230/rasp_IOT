@@ -1,4 +1,5 @@
 '''
+# 온도py 안됨
 import time
 import adafruit_dht
 import RPi.GPIO as GPIO

@@ -1,4 +1,4 @@
-#가능하면 공유환경 source venv2/bin/activate
+#가능하면 가상환경 source venv2/bin/activate
 #헤더파일gpio
 #pip install rpi.gpio 
 #헤더파일paho
@@ -6,6 +6,7 @@
 #sudo git clone https://github.com/eclipse/paho.mqtt.python.git
 #cd paho.mqtt.python
 #sudo python setup.py install
+#모스키토와 이프로세스 실행중유지
 
 import RPi.GPIO as GPIO
 import time
@@ -31,9 +32,9 @@ def on_connect(client, userdata, flags, rc):
 
 def on_message(client, userdata, msg):  
     print(str(msg.payload))
-    if (str(msg.payload).find('1')>0):
+    if (str(msg.payload).find('1')>=0):
         led_on(LED)
-    if (str(msg.payload).find('0')>0):
+    if (str(msg.payload).find('0')>=0):
         led_off(LED)
 
 
