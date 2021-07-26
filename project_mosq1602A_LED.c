@@ -6,31 +6,36 @@
 * by Lewis Loflin www.bristolwatch.com lewis@bvu.net
 * http://www.bristolwatch.com/rpi/i2clcd.htm
 * Using wiringPi by Gordon Henderson
-*
-*
-*
-*
 */
-
+// 라즈베리파이
 #include <wiringPiI2C.h>
 #include <wiringPi.h>
-
+// 기본입출력
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <signal.h>
 #include <sys/types.h>
-
+// mqtt
 #include <mosquitto.h>
 #include <unistd.h>
+// sigint제어
+#include <signal.h>
+// 쓰레드
+#include <pthread.h> 
 
-#include <pthread.h>
+#include <stdint.h> 
 
+// DH11
+#define MAX_TIMINGS	83
+#define DHT_PIN	5	// WirPi 5 == Board(GPIO-24) 
+
+// LED
 #define PIN_NUM 1 // wiringPi넘버1
 
+// LCD Address
 #define I2C_ADDR 0x27 // I2C 디바이스 어드레스(기본0x27)
 
-// Define some device constants
+// LCD 모드 정의
 #define LCD_CHR 1 // 모드 - 데이터 보내기
 #define LCD_CMD 0 // 모드 - command 보내기
 #define PIN_NUM 1 // LED NUM wipi 1 == board 12
@@ -40,18 +45,18 @@
 
 #define LCD_BACKLIGHT 0x08 // On
 // LCD_BACKLIGHT = 0x00  # Off
-
 #define ENABLE 0b00000100 // Enable bit
 
+// 0: blank, 1: me, 2: unknown
 int human = 0;
-
-// mqtt 쓰레드 함수
-void *mqtt_sub(void *data);
 
 // mqtt sub 
 void on_connect(struct mosquitto *mosq, void *obj, int reason_code);
 void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, const int *granted_qos);
 void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg);
+
+// mqtt 쓰레드 함수
+void *mqtt_sub(void *data);
 
 // lcd 데이터처리 함수
 void lcd_init(void);
@@ -67,9 +72,47 @@ void typeChar(char val);
 void typeln(const char *s); //타이핑("문장")
 int fd; 
 
+// DH11 (온도 읽어오는) 함수
+float temp = 1000.0;
+float humi = 1000.0;
+void read_dht_data(void);
+
 //sigint 핸들링 함수
 void interruptHandler(int sig); 
 
+// mqtt 쓰레드 함수 //
+void *mqtt_sub(void *data)
+{
+    //MQTT_sub.c
+    struct mosquitto *mosq;
+	int rc;
+
+	mosquitto_lib_init();
+	mosq = mosquitto_new(NULL, true, NULL);
+	if(mosq == NULL){
+		fprintf(stderr, "Error: Out of memory.\n");
+		return (void*)0;
+	}
+	
+	// 함수들 콜백
+	mosquitto_connect_callback_set(mosq, on_connect); // 연결확인
+	mosquitto_subscribe_callback_set(mosq, on_subscribe); // Sub
+	mosquitto_message_callback_set(mosq, on_message); // 메세지수신
+
+    // 연결
+	rc = mosquitto_connect(mosq, "192.168.1.10", 1883, 60); // 본인아이피
+	if(rc != MOSQ_ERR_SUCCESS){
+		mosquitto_destroy(mosq);
+		fprintf(stderr, "Error: %s\n", mosquitto_strerror(rc));
+		return (void*)0;
+	}
+    //반복
+    usleep(10000);
+    mosquitto_loop_forever(mosq, -1, 1);
+    mosquitto_lib_cleanup();
+}
+
+// 메인 함수 //
 int main()
 {
     //종료시그인트 cntl+c
@@ -89,7 +132,9 @@ int main()
 
     fd = wiringPiI2CSetup(I2C_ADDR);
 
+    //led
     pinMode(PIN_NUM, OUTPUT); //LED output
+    //lcd
     lcd_init(); // setup LCD
 
     char array1[] = "airconditional on";
@@ -115,6 +160,8 @@ int main()
             typeln("Welcome!"); // 스트링입력
             delay(5000);    // 표시중 딜레이
 
+            read_dht_data(); // temp, humi에 한번읽기
+
             if (home_led == 0) //홈 led(iot들이)가 꺼져있는가
             {
                 ClrLcd();
@@ -124,21 +171,21 @@ int main()
                 digitalWrite(PIN_NUM, 1); // LED 작동
                 delay(3000);
             }
-            
-            // 라인에 int value 입력방법
+
+            // 라인에 int value 입력방법 typeInt(int);
+            // 라인에 float value 입력방법 typeFloat(float);
             ClrLcd();
             lcdLoc(LINE1);
             typeln("temp : ");
-            int value = 20125;
-            typeInt(value);
+            typeFloat(temp);
+            typeln(" C");
+            delay(2000);
 
-            // 라인에 float value 입력방법
-            delay(2000);
             lcdLoc(LINE2);
-            typeln("hum : ");
-            float FloatVal = 10045.2;
-            typeFloat(FloatVal);
-            delay(2000);
+            typeln("humi : ");
+            typeFloat(humi);
+            typeln(" %");
+            delay(4000);
 
             // 라인에 배열입력 방법
             // ClrLcd();
@@ -170,43 +217,12 @@ int main()
         }
                     
     }
-    // 비정상적인 break시 쓰레드가 종료
-    pthread_join(p_thread, (void **)&status);
+    
     return 0;
 }
 
-// mqtt 쓰레드 함수 //
-void *mqtt_sub(void *data)
-{
-    //MQTT_sub.c
-    struct mosquitto *mosq;
-	int rc;
 
-	mosquitto_lib_init();
-	mosq = mosquitto_new(NULL, true, NULL);
-	if(mosq == NULL){
-		fprintf(stderr, "Error: Out of memory.\n");
-		return (void*)0;
-	}
-	
-	// 함수들 콜백
-	mosquitto_connect_callback_set(mosq, on_connect); // 연결확인
-	mosquitto_subscribe_callback_set(mosq, on_subscribe); // Sub
-	mosquitto_message_callback_set(mosq, on_message); // 메세지수신
-
-    // 연결
-	rc = mosquitto_connect(mosq, "192.168.0.17", 1883, 60); // 본인아이피
-	if(rc != MOSQ_ERR_SUCCESS){
-		mosquitto_destroy(mosq);
-		fprintf(stderr, "Error: %s\n", mosquitto_strerror(rc));
-		return (void*)0;
-	}
-    //반복
-    mosquitto_loop_forever(mosq, -1, 1);
-    mosquitto_lib_cleanup();
-}
-
-// mqtt sub //
+// 함수부분 mqtt sub //
 /* Callback called connect 클라이언트 sub로 "토픽"을 이어주고, 에러를 클라로부터 브로커가 받을때 */
 void on_connect(struct mosquitto *mosq, void *obj, int reason_code)
 {
@@ -253,7 +269,6 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
     if(!strcmp( ((char *)msg->payload),"2"))
 		human = 2; //허가되지않은 사용자
 }
-
 
 
 // LCD 함수 //
@@ -345,12 +360,89 @@ void lcd_init()
     delayMicroseconds(500);
 }
 
-// sigint 핸들링함수. 종료 //
+// DH11 함수 //
+void read_dht_data()
+{
+    int data[5] = { 0, 0, 0, 0, 0 };
+	uint8_t laststate	= HIGH;
+	uint8_t counter		= 0;
+	uint8_t j			= 0, i;
+	// data[0] = data[1] = data[2] = data[3] = data[4] = 0; //전역배열변수 초기화
+
+    // dh11
+    // LOW를 18ms동안, 그리고 20 ~ 40us동안 HIGH신호를 주면 start 
+    pinMode( DHT_PIN, OUTPUT );
+	digitalWrite( DHT_PIN, LOW );
+	delay(18);
+    //digitalWrite(DHT_PIN, HIGH) ;
+    //delayMicroseconds(30) ;
+
+	pinMode( DHT_PIN, INPUT ); // pin 연결
+	// 데이터 읽는부분
+	for ( i = 0; i < MAX_TIMINGS; i++ )
+	{
+		counter = 0;
+		while ( digitalRead( DHT_PIN ) == laststate )
+		{
+			counter++;
+			delayMicroseconds( 1 );
+			if ( counter == 255 )
+			{
+				break;
+			}
+		}
+		laststate = digitalRead( DHT_PIN );
+		if ( counter == 255 )
+			break;
+		/* ignore first 3 transitions */
+		if ( (i >= 4) && (i % 2 == 0) )
+		{
+			/* shove each bit into the storage bytes */
+			data[j / 8] <<= 1;
+			if ( counter > 16 )
+				data[j / 8] |= 1;
+			j++;
+            //printf("data[4] = %d ,data[0]= %d ,data[1]= %d ,data[2]= %d ,data[3]= %d \n",j,data[4],data[0],data[1],data[2],data[3]);
+		}
+	}
+	//data[4] 부호, humi습도 = data[0].data[1] % , temp온도 = data[2].data[3] 'C
+
+	/* check 40 bits (8bit x 5 ) + verify checksum in the last byte*/
+	if ( (j >= 40) &&
+	    (data[4] == ( (data[0] + data[1] + data[2] + data[3]) & 0xFF) ) )
+	{
+		float h = (float)((data[0] << 8) + data[1]) / 10;
+		if ( h > 100 )
+		{
+			h = data[0];	// humi DHT11
+		}
+		float c = (float)(((data[2] & 0x7F) << 8) + data[3]) / 10;
+		if ( c > 125 )
+		{
+			c = data[2];	// temp DHT11
+		}
+		if ( data[2] & 0x80 )
+		{
+			c = -c;
+		}
+		float f = c * 1.8f + 32; // 'F
+
+		printf( "Humidity = %.1f %% Temperature = %.1f *C (%.1f *F)\n", h, c, f );
+        humi = h;
+        temp = c;
+	}else  {
+		printf( "DH11 Data get failed\n" );
+        
+	}
+}
+
+// sigint 핸들링함수. 종료콜 //
 void interruptHandler(int sig) 
 {
+    printf("테스트 프로세스 끝내기.\n"); 
     lcd_init(); //lcd초기화
     digitalWrite(PIN_NUM, 0); //불끄기
-    printf("테스트 프로세스 끝내기.\n"); 
     sleep(1);
+    printf("Main Done");
     exit(0);
 }

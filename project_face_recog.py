@@ -20,13 +20,12 @@ def mqttThread ():
     FamilyInHome = 0
     global human
     global led
-   
+    mqttc = mqtt.Client("recog") #pub이름 아무거나
+    mqttc.connect("192.168.1.10", 1883,60) #보낼아이피
     while True:
         #me와 집안에 아무도없을때
         #접근한사람 human이 me일때
         if human == 1:
-            mqttc = mqtt.Client("recog") #pub이름 아무거나
-            mqttc.connect("192.168.0.17", 1883,60) #보낼아이피
             #집주인에게 알림
             mqttc.publish("myhome/VIDEO", "Me가 집에 들어왔습니다") #"토픽", "msg"
             #IOT LED작동
@@ -36,8 +35,6 @@ def mqttThread ():
             
         #낮선사람
         if human == 2:
-            mqttc = mqtt.Client("recog") #pub이름 아무거나
-            mqttc.connect("192.168.0.17", 1883,60) #보낼아이피
             #집주인에게 알림
             mqttc.publish("myhome/VIDEO", "낮선사람이 집을 서성입니다.") #"토픽", "msg"
             #IOT 경고음
@@ -57,6 +54,7 @@ def mqttThread ():
 
         #종료 콜 받으면
         if mqttThread_status == 0:
+            print("mqtt off")
             break;
         
 
@@ -70,7 +68,7 @@ time.sleep(1) #쓰레드시작대기
 video_capture = cv2.VideoCapture(0)
 
 #STEP 1. 사진부분
-#raspistill -o /home/pi/work/me.jpg -w 320 -h 240
+#raspistill -o /home/pi/work/me320x240.jpg -w 320 -h 240
 #사진한장 찍어서 파일하나 넣기
 #me_image = fr.load_image_file("/home/pi/work/me.jpg")
 me_image = fr.load_image_file("/home/pi/work/me320x240.jpg")
@@ -81,8 +79,9 @@ known_face_encondings = [me_face_encoding]
 known_face_names = ["Me"] #your name
 
 #비디오 촬영 사이즈
-video_capture.set(3,320)
-video_capture.set(4,240)
+video_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 320) #cv2.CAP_PROP_FRAME_WIDTH == 3
+video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 240) #cv2.CAP_PROP_FRAME_HEIGHT == 4
+video_capture.set(cv2.CAP_PROP_FPS, 20)
 #STEP 2. 비디오 촬영부분
 while True: 
     ret, frame = video_capture.read()
@@ -121,14 +120,15 @@ while True:
     #화면에 띄우기
     cv2.imshow('Webcam_facerecognition', frame)
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    if (cv2.waitKey(1) & 0xFF == ord('q')):
         break
 
 #쓰레드 종료
-mqttThread_status = 0
+mqttThread_status = 0 #스레드,종료
 time.sleep(1)
 #카메라 off
 video_capture.release()
 cv2.destroyAllWindows()
+print("Main Done")
 
 
