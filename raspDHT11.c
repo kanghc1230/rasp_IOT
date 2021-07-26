@@ -4,21 +4,22 @@
 #include <stdlib.h>
 #include <stdint.h>
 #define MAX_TIMINGS	85
-#define DHT_PIN	1	/* GPIO-12 */
+#define DHT_PIN	5	// WirPi 1 == Board(GPIO-12) 
 int data[5] = { 0, 0, 0, 0, 0 };
+
 void read_dht_data()
 {
 	uint8_t laststate	= HIGH;
 	uint8_t counter		= 0;
 	uint8_t j			= 0, i;
 	data[0] = data[1] = data[2] = data[3] = data[4] = 0;
-	/* pull pin down for 18 milliseconds */
+	
 	pinMode( DHT_PIN, OUTPUT );
 	digitalWrite( DHT_PIN, LOW );
 	delay( 18 );
-	/* prepare to read the pin */
+	// pin 연결
 	pinMode( DHT_PIN, INPUT );
-	/* detect change and read data */
+	// 데이터 읽는부분
 	for ( i = 0; i < MAX_TIMINGS; i++ )
 	{
 		counter = 0;
@@ -54,12 +55,12 @@ void read_dht_data()
 		float h = (float)((data[0] << 8) + data[1]) / 10;
 		if ( h > 100 )
 		{
-			h = data[0];	// for DHT11
+			h = data[0];	// DHT11
 		}
 		float c = (float)(((data[2] & 0x7F) << 8) + data[3]) / 10;
 		if ( c > 125 )
 		{
-			c = data[2];	// for DHT11
+			c = data[2];	// DHT11
 		}
 		if ( data[2] & 0x80 )
 		{
@@ -73,13 +74,12 @@ void read_dht_data()
 }
 int main( void )
 {
-	printf( "Raspberry Pi DHT11/DHT22 temperature/humidity test\n" );
 	if ( wiringPiSetup() == -1 )
 		exit( 1 );
 	while ( 1 )
 	{
 		read_dht_data();
-		delay( 2000 ); /* wait 2 seconds before next read */
+		delay( 2000 ); //2초대기
 	}
 	return(0);
 }
