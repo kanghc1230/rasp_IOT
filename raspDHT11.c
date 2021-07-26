@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #define MAX_TIMINGS	85
-#define DHT_PIN	5	// WirPi 1 == Board(GPIO-12) 
+#define DHT_PIN	1	// WirPi 1 == Board(GPIO-12) 
 int data[5] = { 0, 0, 0, 0, 0 };
 
 void read_dht_data()
