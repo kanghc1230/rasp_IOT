@@ -38,19 +38,21 @@ while True:
 
         best_match_index = np.argmin(face_distances)
         if matches[best_match_index]:
-            name = known_face_names[best_match_index]
+            name = known_face_names[best_match_index] #name에 unknown대신 me 
         
+        #사각형 그리기
         cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
 
         cv2.rectangle(frame, (left, bottom -35), (right, bottom), (0, 0, 255), cv2.FILLED)
         font = cv2.FONT_HERSHEY_SIMPLEX
         cv2.putText(frame, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
 
+    #화면에 띄우기
     cv2.imshow('Webcam_facerecognition', frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
-
+#종료
 video_capture.release()
 cv2.destroyAllWindows()
 
