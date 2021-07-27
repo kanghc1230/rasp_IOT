@@ -4,7 +4,6 @@
 #include <wiringPi.h>
  
 #define LED 1
-#define SWITCH 4
  
 int main(int argc, char *argv[]){
     if(wiringPiSetup() == -1)
@@ -12,19 +11,20 @@ int main(int argc, char *argv[]){
  
     // Mode 설정
     pinMode(LED, OUTPUT);
-    pinMode(SWITCH, INPUT);
  
-    while(1){
-        if(digitalRead(SWITCH) == HIGH){
-            printf("Button was pressed\n");
-            digitalWrite(LED, HIGH);
-        }
-        else{
-            printf("Button was NOT pressed\n");
-            digitalWrite(LED, LOW);
-        }
- 
-        delay(1000);
+    if (argc != 2)
+    {
+        printf("Command type Error\n%s <1 or 0>\n",argv[1],argv[0]);
+        return 0;
     }
+
+    if(*argv[1]==49){
+            printf("Turn on Command \n");
+            digitalWrite(LED, HIGH);
+    }
+    else if(*argv[1]==48){
+        printf("Turn off Command \n");
+        digitalWrite(LED, LOW);
+    } 
     return 0;
 }
