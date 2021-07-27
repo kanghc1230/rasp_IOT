@@ -146,6 +146,7 @@ int main()
         // 0 입력받을시 불끄기
         if (human == 0 && home_led == 1){
             digitalWrite(PIN_NUM, 0);
+            home_led = 0;
             ClrLcd();
         }
 
